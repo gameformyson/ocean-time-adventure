@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Ocean Time Adventure V2</title>
+<style>
+body{font-family:Arial;background:linear-gradient(#8ed6ff,#e8fbff);margin:0;text-align:center;overflow-x:hidden}
+h1,h2{color:#005b7f}
+.screen{display:none;padding:20px}.active{display:block}
+button{padding:12px 18px;border:none;border-radius:12px;margin:6px;font-size:18px;cursor:pointer}
+.home{position:fixed;left:10px;top:10px}
+.level{display:block;width:320px;max-width:90%;margin:10px auto}
+.clock{width:320px;height:320px;border:10px solid #005b7f;border-radius:50%;background:#fff;margin:20px auto;position:relative}
+.number{position:absolute;font-size:24px;font-weight:bold}
+.hand{position:absolute;left:50%;bottom:50%;transform-origin:bottom center}
+.hour{width:8px;height:85px;background:#005b7f}
+.minute{width:4px;height:120px;background:#ff6b6b}
+.center{width:16px;height:16px;background:#005b7f;border-radius:50%;position:absolute;left:50%;top:50%;transform:translate(-50%,-50%)}
+#feedback,#hintText{min-height:36px;font-size:26px;font-weight:bold}
+.creature{font-size:42px;display:inline-block;margin:8px}
+.float{animation:float 3s ease-in-out infinite}
+.swim{animation:swim 10s linear infinite}
+.spin{animation:spin 3s linear infinite}
+@keyframes float{50%{transform:translateY(-10px)}}
+@keyframes swim{from{transform:translateX(-120vw)}to{transform:translateX(120vw)}}
+@keyframes spin{to{transform:rotate(360deg)}}
+.badge{font-size:34px}
+</style>
+</head>
+<body>
+
+<button class="home" onclick="showMenu()">🏠 Home</button>
+
+<div id="menu" class="screen active">
+<h1>🐠 Ocean Time Adventure V2 🐙</h1>
+<div>
+<span class="creature float">🐠</span>
+<span class="creature float">🐢</span>
+<span class="creature float">⭐</span>
+<span class="creature float">🪼</span>
+<span class="creature float">🐙</span>
+<span class="creature float">🦈</span>
+</div>
+<h2>Choose a Level</h2>
+<button class="level" onclick="start(1)">⭐ O'Clock</button>
+<button class="level" onclick="start(2)">⭐⭐ Half Past</button>
+<button class="level" onclick="start(3)">⭐⭐⭐ Quarter Past</button>
+<button class="level" onclick="start(4)">⭐⭐⭐⭐ Quarter To</button>
+<button class="level" onclick="start(5)">⭐⭐⭐⭐⭐ 5 Minute Times</button>
+</div>
+
+<div id="game" class="screen">
+<h2 id="levelTitle"></h2>
+<div>Question <span id="q"></span>/10 | ⭐ <span id="stars">0</span></div>
+
+<div class="clock" id="clock">
+<div id="hourHand" class="hand hour"></div>
+<div id="minuteHand" class="hand minute"></div>
+<div class="center"></div>
+</div>
+
+<button onclick="readHint()">💡 Hint: Read Time</button>
+<div id="hintText"></div>
+
+<div id="answers"></div>
+<div id="feedback"></div>
+</div>
+
+<div id="finish" class="screen">
+<h1>🎉 Great Job!</h1>
+<div class="swim" style="font-size:50px">🐠 🐢 ⭐ 🦈</div>
+<div id="badge" class="badge"></div>
+<h2>Ocean Collection</h2>
+<div id="collection"></div>
+<button onclick="showMenu()">Back to Home</button>
+</div>
+
+<script>
+const unlocks=[
+{score:10,icon:"⭐",name:"Starfish"},
+{score:20,icon:"🐠",name:"Clownfish"},
+{score:30,icon:"🐢",name:"Sea Turtle"},
+{score:40,icon:"🪼",name:"Jellyfish"},
+{score:60,icon:"🐙",name:"Octopus"},
+{score:100,icon:"🦈",name:"Shark"}
+];
+
+function buildClock(){
+ let c=document.getElementById("clock");
+ for(let n=1;n<=12;n++){
+ let a=(n*30-90)*Math.PI/180;
+ let x=140+120*Math.cos(a), y=140+120*Math.sin(a);
+ let d=document.createElement("div");
+ d.className="number"; d.innerHTML=n;
+ d.style.left=x+"px"; d.style.top=y+"px";
+ c.appendChild(d);
+ }
+}
+buildClock();
+
+let level=1,score=0,qn=0,correct="",spoken="";
+
+function show(id){
+ document.querySelectorAll(".screen").forEach(x=>x.classList.remove("active"));
+ document.getElementById(id).classList.add("active");
+}
+function showMenu(){show("menu")}
+
+function setClock(h,m){
+ hourHand.style.transform=`translateX(-50%) rotate(${h*30+m*0.5}deg)`;
+ minuteHand.style.transform=`translateX(-50%) rotate(${m*6}deg)`;
+}
+
+function words(h,m){
+ if(m===0) return h+" o'clock";
+ if(m===15) return "quarter past "+h;
+ if(m===30) return "half past "+h;
+ if(m===45) return "quarter to "+((h%12)+1);
+ return h+" "+m;
+}
+
+function start(l){
+ level=l; score=0; qn=0;
+ stars.textContent=0;
+ show("game");
+ nextQ();
+}
+
+function nextQ(){
+ if(qn>=10){finishGame(); return;}
+ qn++; q.textContent=qn;
+ feedback.textContent=""; hintText.textContent="";
+ let h=Math.floor(Math.random()*12)+1,m=0;
+ if(level==2)m=30;
+ else if(level==3)m=15;
+ else if(level==4)m=45;
+ else if(level==5)m=[0,5,10,15,20,25,30,35,40,45,50,55][Math.floor(Math.random()*12)];
+ setClock(h,m);
+ correct=`${h}:${String(m).padStart(2,'0')}`;
+ spoken=words(h,m);
+ levelTitle.textContent="What time is it?";
+ let opts=[correct];
+ while(opts.length<4){
+  let hh=Math.floor(Math.random()*12)+1;
+  let mm=[0,5,10,15,20,25,30,35,40,45,50,55][Math.floor(Math.random()*12)];
+  let t=`${hh}:${String(mm).padStart(2,'0')}`;
+  if(!opts.includes(t)) opts.push(t);
+ }
+ opts.sort(()=>Math.random()-0.5);
+ answers.innerHTML="";
+ opts.forEach(v=>{
+   let b=document.createElement("button");
+   b.textContent=v;
+   b.onclick=()=>check(v);
+   answers.appendChild(b);
+ });
+}
+
+function beep(){
+ let a=new(AudioContext||webkitAudioContext)();
+ let o=a.createOscillator(),g=a.createGain();
+ o.connect(g);g.connect(a.destination);
+ o.frequency.value=900;o.start();
+ g.gain.exponentialRampToValueAtTime(0.0001,a.currentTime+0.2);
+ o.stop(a.currentTime+0.2);
+}
+
+function check(v){
+ if(v===correct){
+   score++; stars.textContent=score; beep();
+   feedback.style.color="green";
+   feedback.textContent="✅ Correct!";
+   setTimeout(nextQ,800);
+ }else{
+   feedback.style.color="red";
+   feedback.textContent="❌ Try Again!";
+ }
+}
+
+function readHint(){
+ hintText.textContent="📝 "+spoken;
+ speechSynthesis.speak(new SpeechSynthesisUtterance(spoken));
+}
+
+function finishGame(){
+ let total=(parseInt(localStorage.getItem("oceanStars")||0)+score);
+ localStorage.setItem("oceanStars",total);
+
+ show("finish");
+ badge.textContent=score>=9?"🥇 Gold Badge":score>=7?"🥈 Silver Badge":"🥉 Bronze Badge";
+
+ let html="";
+ unlocks.forEach(u=>{
+   html += total>=u.score ? `<div>${u.icon} ${u.name} Unlocked</div>` :
+   `<div>🔒 ${u.name} (${u.score}⭐)</div>`;
+ });
+ collection.innerHTML=html;
+}
+</script>
+</body>
+</html>
